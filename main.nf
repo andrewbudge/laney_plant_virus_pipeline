@@ -33,7 +33,7 @@ workflow {
     db = resolve(params.db, params.data_dir, '--db')
     if (!db.isDirectory()) error "--db is not a directory: ${db}"
 
-    sortmerna_ref = file("${db}/sortmerna/reference.fasta", checkIfExists: true)
+    sortmerna_ref = file("${db}/sortmerna/smr_v4.3_default_db.fasta", checkIfExists: true)
     sortmerna_idx = file("${db}/sortmerna/index", checkIfExists: true)
     if (!sortmerna_idx.isDirectory())
         error "SortMeRNA index is not a directory: ${sortmerna_idx}"

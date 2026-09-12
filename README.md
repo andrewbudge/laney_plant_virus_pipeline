@@ -34,7 +34,7 @@ or relative to `--data_dir`.
   raw/                            input reads
   databases/                      pass as --db databases
     sortmerna/
-      reference.fasta
+      smr_v4.3_default_db.fasta
       index/                      prebuilt SortMeRNA index
     blastn/                       future viral-screening databases
 ```
@@ -113,8 +113,9 @@ the extension is appended by the tool. Renaming the `output:` declarations
 produces a missing-output error, not a renamed file.
 
 **The SortMeRNA index must match its reference.** Keep the prebuilt index at
-`<db>/sortmerna/index/` beside `<db>/sortmerna/reference.fasta`; the pipeline
-fails before submitting work if either is absent.
+`<db>/sortmerna/index/` beside
+`<db>/sortmerna/smr_v4.3_default_db.fasta`; the pipeline fails before
+submitting work if either is absent.
 
 ## Requirements
 
