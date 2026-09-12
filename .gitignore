@@ -1,0 +1,29 @@
+# Nextflow runtime state -- regenerated every run, never shared between machines
+.nextflow/
+.nextflow.log*
+work/
+results/
+report.html
+timeline.html
+trace.txt
+dag.html
+
+# Container images
+*.sif
+*.img
+
+# Data never belongs in the repo: reads, references and indexes live under
+# --data_dir / --db_dir on whatever machine is running.
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.fasta
+*.fa
+*.fna
+*.faa
+
+# OS / editor
+.DS_Store
+*.swp
+*~

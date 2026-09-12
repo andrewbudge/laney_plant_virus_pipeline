@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""List biocontainer image tags for a bioconda tool.
+
+    ./tagfind spades              # newest tags
+    ./tagfind spades 4.3          # only tags starting 4.3
+    ./tagfind spades 4.3 --all    # every match, not just the last 15
+
+Anything packaged on bioconda gets a biocontainer built automatically under the
+same name, so the tool name is usually just the bioconda package name. Copy the
+FULL tag including the --hash_N build suffix; a bare version is not a valid tag.
+
+Then read that exact version's help before writing the rule:
+
+    apptainer exec docker://quay.io/biocontainers/<tool>:<tag> <cmd> --help
+"""
+import json
+import sys
+import urllib.error
+import urllib.request
+
+API = "https://quay.io/api/v1/repository/biocontainers/{tool}/tag/"
+
+
+def fetch_tags(tool):
+    tags, page = set(), 1
+    while page <= 10:
+        url = f"{API.format(tool=tool)}?limit=100&page={page}&onlyActiveTags=true"
+        try:
+            with urllib.request.urlopen(url, timeout=45) as r:
+                data = json.load(r)
+        except urllib.error.HTTPError as e:
+            # quay answers 401, not 404, for a repo that does not exist
+            if e.code in (401, 404):
+                return None
+            raise
+        batch = data.get("tags", [])
+        if not batch:
+            break
+        tags.update(t["name"] for t in batch)
+        if not data.get("has_additional"):
+            break
+        page += 1
+    return tags
+
+
+def sort_key(tag):
+    """Sort by version so 1.25 lands after 1.9, and 1.6a0 before 1.6.
+
+    Each dotted chunk splits into its leading number and any trailing suffix.
+    A chunk with a suffix ("6a0") is a prerelease, so it sorts before the bare
+    number ("6") it leads up to.
+    """
+    version = tag.split("--")[0]
+    parts = []
+    for chunk in version.replace("_", ".").split("."):
+        digits = ""
+        while chunk and chunk[0].isdigit():
+            digits, chunk = digits + chunk[0], chunk[1:]
+        number = int(digits) if digits else -1
+        parts.append((number, 0 if chunk else 1, chunk))
+    return (parts, tag)
+
+
+def main():
+    args = [a for a in sys.argv[1:] if a != "--all"]
+    show_all = "--all" in sys.argv[1:]
+    if not args:
+        sys.exit(__doc__)
+
+    tool = args[0]
+    prefix = args[1] if len(args) > 1 else ""
+
+    tags = fetch_tags(tool)
+    if tags is None:
+        sys.exit(f"no biocontainers repo named '{tool}' (check the bioconda package name)")
+
+    matches = sorted((t for t in tags if t.startswith(prefix)), key=sort_key)
+    if not matches:
+        sys.exit(f"no tags for '{tool}' starting with '{prefix}' ({len(tags)} tags total)")
+
+    shown = matches if show_all else matches[-15:]
+    if len(shown) < len(matches):
+        print(f"... {len(matches) - len(shown)} older tags hidden (--all to see them)\n")
+    for t in shown:
+        print(f"docker://quay.io/biocontainers/{tool}:{t}")
+
+
+if __name__ == "__main__":
+    main()
