@@ -13,7 +13,7 @@ dag.html
 *.img
 
 # Data never belongs in the repo: reads, references and indexes live under
-# --data_dir / --db_dir on whatever machine is running.
+# --data_dir / --db on whatever machine is running.
 *.fastq
 *.fastq.gz
 *.fq
