@@ -14,6 +14,7 @@
 include { FASTP          } from './modules/local/fastp/main.nf'
 include { SORTMERNA      } from './modules/local/sortmerna/main.nf'
 include { SPADES         } from './modules/local/spades/main.nf'
+include { FILTER         } from './modules/local/filter/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
 
 // Relative paths resolve against a caller-supplied root; absolute paths pass
@@ -65,6 +66,7 @@ workflow {
     FASTP(ch_samples)
     SORTMERNA(FASTP.out.reads, ch_ref, ch_idx)
     SPADES(SORTMERNA.out.clean)
+    FILTER(SPADES.out.contigs)
 
     MULTIQC(
         FASTP.out.json.mix(SORTMERNA.out.log).collect()

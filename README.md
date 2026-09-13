@@ -4,7 +4,7 @@ Adapter/quality trimming and rRNA depletion for plant virus RNA-seq, then de
 novo RNA viral assembly (SPAdes `--rnaviral`), plus one MultiQC report per run.
 
 ```
-fastp ──► sortmerna ──► spades --rnaviral ──► scaffolds.fasta
+fastp ──► sortmerna ──► spades --rnaviral ──► filter (len/cov) ──► sample.contigs.fasta
   └──────────┴────────────► multiqc_report.html
 ```
 
@@ -18,7 +18,7 @@ main.nf                workflow wiring + samplesheet/path validation
 conf/base.config       per-process resources + retry policy
 conf/modules.config    per-process containers, publishDir, tool args
 conf/slurm.config      CHPC executor (profile slurm)
-modules/local/         one process per file: fastp, sortmerna, spades, multiqc
+modules/local/         one process per file: fastp, sortmerna, spades, filter, multiqc
 bin/tagfind            biocontainer tag lookup helper
 run.sh / run_local.sh  HPC and local launchers
 ```
@@ -90,12 +90,15 @@ the subset paths in `samplesheet.tsv`.
   fastp/<sample>/       trimmed reads, .html, .json
   sortmerna/<sample>/   .clean_fwd/.clean_rev (assembly input), .rrna_*, .rrna.log
   spades/<sample>/      contigs.fasta, scaffolds.fasta, spades.log
+  filter/<sample>/      <sample>.contigs.fasta (filtered, id-prefixed headers)
   multiqc/              multiqc_report.html
   pipeline_info/        timeline, report, trace, dag
 ```
 
-`spades/<sample>/scaffolds.fasta` is the assembled viral contigs (contigs.fasta
-is the unfiltered set).
+`filter/<sample>/<sample>.contigs.fasta` is the final set for viral screening:
+SPAdes contigs (contigs.fasta) kept when length >= `--contig_min_length` and mean
+coverage >= `--contig_min_cov` (defaults 1000 bp / 10x), with headers prefixed
+by the sample id (`NODE_1_...` -> `<sample>_1_...`).
 
 `pipeline_info/report.html` is what to send along when a run misbehaves — it
 carries per-task exit codes, peak memory and runtime.
