@@ -117,6 +117,10 @@ produces a missing-output error, not a renamed file.
 `<db>/sortmerna/smr_v4.3_default_db.fasta`; the pipeline fails before
 submitting work if either is absent.
 
+**SPAdes is pinned to 4.0.0.** Bioconda SPAdes 4.2+ binaries require AVX2 and
+die with `Illegal instruction` on lonepeak's pre-AVX2 Xeons. 4.0.0 supports
+`--rnaviral` and remains compatible with those nodes.
+
 ## Requirements
 
 - CHPC: `nextflow/25.04` and `apptainer/1.4.0` (loaded by `run.sh`), plus a

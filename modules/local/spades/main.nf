@@ -9,7 +9,7 @@ process SPADES {
     tuple val(meta), path(r1), path(r2)
 
     output:
-    // rnaviralSPAdes 4.3.0 writes genome-style outputs (contigs.fasta +
+    // rnaviralSPAdes writes genome-style outputs (contigs.fasta +
     // scaffolds.fasta), verified empirically -- the rnaSPAdes-family
     // 'transcripts.fasta' name does NOT appear here.
     tuple val(meta), path("spades_out/contigs.fasta"),   emit: contigs
@@ -24,6 +24,6 @@ process SPADES {
         -2 ${r2} \\
         -o spades_out \\
         -t ${task.cpus} \\
-        ${task.ext.args}
+        -m ${task.memory.toGiga()}
     """
 }
