@@ -27,3 +27,7 @@ dag.html
 .DS_Store
 *.swp
 *~
+
+# Iteration notes -- rewritten once at release; pipeline is still moving
+README.md
+AGENTS.md

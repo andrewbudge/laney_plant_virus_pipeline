@@ -1,8 +1,9 @@
 #!/usr/bin/env nextflow
 //
-// plant-virus QC + assembly: adapter/quality trim (fastp), rRNA depletion
-// (SortMeRNA), de novo RNA viral assembly (SPAdes --rnaviral), plus a MultiQC
-// report per run.
+// plant-virus QC + assembly + viral screening: adapter/quality trim (fastp),
+// rRNA depletion (SortMeRNA), de novo RNA viral assembly (SPAdes --rnaviral),
+// contig filtering, blastn against the viral nucleotide database, plus a
+// MultiQC report per run.
 //
 // Processes live in modules/local/; their containers, publishDir and tool
 // arguments are configured in conf/modules.config. Resources/retry live in
@@ -15,6 +16,7 @@ include { FASTP          } from './modules/local/fastp/main.nf'
 include { SORTMERNA      } from './modules/local/sortmerna/main.nf'
 include { SPADES         } from './modules/local/spades/main.nf'
 include { FILTER         } from './modules/local/filter/main.nf'
+include { BLASTN         } from './modules/local/blastn/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
 
 // Relative paths resolve against a caller-supplied root; absolute paths pass
@@ -38,6 +40,10 @@ workflow {
     sortmerna_idx = file("${db}/sortmerna/index", checkIfExists: true)
     if (!sortmerna_idx.isDirectory())
         error "SortMeRNA index is not a directory: ${sortmerna_idx}"
+
+    blastn_dir = file("${db}/blastn")
+    if (!blastn_dir.isDirectory())
+        error "Blast database directory is not a directory: ${blastn_dir}"
 
     ch_samples = Channel
         .fromPath(params.input, checkIfExists: true)
@@ -67,6 +73,7 @@ workflow {
     SORTMERNA(FASTP.out.reads, ch_ref, ch_idx)
     SPADES(SORTMERNA.out.clean)
     FILTER(SPADES.out.contigs)
+    BLASTN(FILTER.out.contigs, Channel.value(blastn_dir), Channel.value(params.blastn_db))
 
     MULTIQC(
         FASTP.out.json.mix(SORTMERNA.out.log).collect()
