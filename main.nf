@@ -22,6 +22,7 @@ include { DIAMOND_UNIREF90 } from './modules/local/diamond_uniref90/main.nf'
 include { GENOMAD        } from './modules/local/genomad/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
 include { SAMTOOLS_SORT  } from './modules/local/samtools_sort/main.nf'
+include { EVIDENCE       } from './modules/local/evidence/main.nf'
 
 // Relative paths resolve against a caller-supplied root; absolute paths pass
 // through untouched.
@@ -51,6 +52,9 @@ workflow {
 
     rvdb_prot_db = file("${db}/blastx/U-RVDB-prot.dmnd")
     uniref90_db = file("${db}/blastx/uniref90.dmnd")
+    rvdb_taxmap = file("${db}/blastx/U-RVDBv32.0-prot.taxmap.tsv", checkIfExists: true)
+    uniref90_taxmap = file("${db}/blastx/uniref90.taxmap.tsv", checkIfExists: true)
+    aggregate_script = file("${baseDir}/bin/aggregate_evidence.sh", checkIfExists: true)
 
     ch_samples = Channel
         .fromPath(params.input, checkIfExists: true)
@@ -85,6 +89,16 @@ workflow {
     GENOMAD(FILTER.out.contigs, Channel.value(genomad_db))
     BOWTIE2(SORTMERNA.out.clean.join(FILTER.out.contigs))
     SAMTOOLS_SORT(BOWTIE2.out.sam)
+    evidence_inputs = DIAMOND_RVDB.out.rvdb
+        .join(DIAMOND_UNIREF90.out.uniref90)
+        .join(GENOMAD.out.virus_summary)
+        .join(SAMTOOLS_SORT.out.coverage)
+    EVIDENCE(
+        evidence_inputs,
+        Channel.value(rvdb_taxmap),
+        Channel.value(uniref90_taxmap),
+        Channel.value(aggregate_script)
+    )
     MULTIQC(
         FASTP.out.json.mix(SORTMERNA.out.log).collect()
     )
