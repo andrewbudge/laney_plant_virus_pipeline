@@ -21,9 +21,7 @@ process EVIDENCE {
     cp ${uniref90} inputs/07_diamond/${meta.id}/${meta.id}.uniref90.tsv
     ln -s ../../${rvdb_taxmap} db/blastx/U-RVDBv32.0-prot.taxmap.tsv
     ln -s ../../${uniref90_taxmap} db/blastx/uniref90.taxmap.tsv
-    cp ${aggregate_script} aggregate_evidence.sh
-    chmod +x aggregate_evidence.sh
-    ./aggregate_evidence.sh -s ${meta.id} -o inputs -d db
+    bash ${aggregate_script} -s ${meta.id} -o inputs -d db
     mv inputs/evidence/${meta.id}.evidence.tsv ${meta.id}.evidence.tsv
     """
 }
