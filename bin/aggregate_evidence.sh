@@ -20,7 +20,7 @@
 #   $db/blastx/U-RVDBv32.0-prot.taxmap.srt
 #   $db/blastx/uniref90.taxmap.srt
 #
-# Output: $out/evidence/<s>.evidence.tsv  (48-column schema, see header)
+# Output: $out/evidence/<s>.evidence.tsv  (56-column schema, see header)
 set -euo pipefail
 export LC_ALL=C
 export TMPDIR="$PWD"
@@ -88,19 +88,22 @@ fi
 
 # ---- rvdb hits: sseqid-keyed file -> protein FASTA header taxmap ------------
 # joined: key contig sseqid prot ntacc prod pident aln_len mismatch gapopen
-#         qstart qend sstart send evalue bitscore | prot ntacc organism product
+#         qstart qend sstart send evalue bitscore qlen slen qcovhsp scovhsp |
+#         prot ntacc organism product
 awk -F'\t' '{
   split($2,a,"|");
   print $2 "\t" $1 "\t" $2 "\t" a[3] "\t" a[5] "\t" a[6] "\t" \
-        $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "\t" $10 "\t" $11 "\t" $12
+        $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 "\t" $10 "\t" $11 "\t" $12 "\t" \
+        $13 "\t" $14 "\t" $15 "\t" $16
 }' "$r" \
   | sort -t$'\t' -k1,1 \
   | join -t$'\t' -a1 -1 1 -2 1 - "$rvdb_srt" > "$tmp/rvdb.joined"
 
 # ---- top UniRef90 hit per contig -> taxmap join ---------------------------
 # joined: id  contig sseqid pident aln_len mismatch gapopen qstart qend
-#         sstart send evalue bitscore | taxid organism repid description
-awk -F'\t' '!seen[$1]++ {print $2"\t"$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$11"\t"$12}' "$u" \
+#         sstart send evalue bitscore qlen slen qcovhsp scovhsp |
+#         taxid organism repid description
+awk -F'\t' '!seen[$1]++ {print $2"\t"$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$11"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16}' "$u" \
   | sort -t$'\t' -k1,1 \
   | join -t$'\t' -a1 -1 1 -2 1 - "$ur90_srt" > "$tmp/ur90.joined"
 
@@ -118,8 +121,8 @@ awk -F'\t' '!seen[$1]++ {print $2"\t"$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$
   }
   function emit(k,line,has,    n,nz,i) {
     for (i=1;i<=9;i++) ga[i]="NA"
-    for (i=1;i<=15;i++) rv[i]="NA"
-    for (i=1;i<=15;i++) ua[i]="NA"
+    for (i=1;i<=19;i++) rv[i]="NA"
+    for (i=1;i<=19;i++) ua[i]="NA"
     for (i=1;i<=6;i++) ca[i]="NA"
 
     n=split(k,p,"_")
@@ -135,24 +138,25 @@ awk -F'\t' '!seen[$1]++ {print $2"\t"$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$
       rv[1]=z[4]; rv[2]=z[5]; rv[3]=z[6]; rv[4]=z[7]; rv[5]=z[8]
       rv[6]=z[9]; rv[7]=z[10]; rv[8]=z[11]; rv[9]=z[12]; rv[10]=z[13]
       rv[11]=z[14]; rv[12]=z[15]; rv[13]=z[16]; rv[14]=z[17]
-      if (nz >= 21) {
-        rv[2]=z[18]; rv[3]=z[19]; rv[4]=z[21]
-        rv[15]=z[20]
+      rv[15]=z[18]; rv[16]=z[19]; rv[17]=z[20]; rv[18]=z[21]
+      if (nz >= 25) {
+        rv[2]=z[22]; rv[3]=z[23]; rv[4]=z[25]
+        rv[19]=z[24]
       }
     }
     print k,len,covv,
       ga[1],ga[2],ga[3],ga[4],ga[5],ga[6],ga[7],ga[8],ga[9],
-      rv[1],rv[2],rv[3],rv[4],rv[5],rv[6],rv[7],rv[8],rv[9],rv[10],rv[11],rv[12],rv[13],rv[14],rv[15],
-      ua[1],ua[2],ua[3],ua[4],ua[5],ua[6],ua[7],ua[8],ua[9],ua[10],ua[11],ua[12],ua[13],ua[14],ua[15],
+      rv[1],rv[2],rv[3],rv[4],rv[5],rv[6],rv[7],rv[8],rv[9],rv[10],rv[11],rv[12],rv[13],rv[14],rv[15],rv[16],rv[17],rv[18],rv[19],
+      ua[1],ua[2],ua[3],ua[4],ua[5],ua[6],ua[7],ua[8],ua[9],ua[10],ua[11],ua[12],ua[13],ua[14],ua[15],ua[16],ua[17],ua[18],ua[19],
       ca[1],ca[2],ca[3],ca[4],ca[5],ca[6]
   }
   $1=="G" { add_contig($2); gl[$2]=$3; g[$2]=$4"\t"$5"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$11"\t"$12; next }
   $1=="C" { add_contig($2); c[$2]=$5"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10; next }
   $1=="U" {
-    for (i=0;i<11;i++) ua[1+i]=$(4+i);
-    for (i=15;i<=18;i++) { ua[11+i-14] = (NF>=i) ? $i : "NA" }
+    for (i=0;i<15;i++) ua[1+i]=$(4+i);
+    for (i=19;i<=22;i++) { ua[15+i-18] = (NF>=i) ? $i : "NA" }
     u[$3]=ua[1];
-    for (i=2;i<=15;i++) u[$3]=u[$3]"\t"ua[i];
+    for (i=2;i<=19;i++) u[$3]=u[$3]"\t"ua[i];
     add_contig($3)
     next
   }
@@ -170,7 +174,7 @@ awk -F'\t' '!seen[$1]++ {print $2"\t"$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$
 
 mkdir -p "$(dirname "$out")"
 cat > "$out" <<'HDR'
-contig	contig_length	contig_cov	genomad_topology	genomad_coordinates	genomad_n_genes	genomad_genetic_code	genomad_virus_score	genomad_fdr	genomad_n_hallmarks	genomad_marker_enrichment	genomad_taxonomy	rvdb_sseqid	rvdb_protein_acc	rvdb_nt_acc	rvdb_product	rvdb_pident	rvdb_aln_len	rvdb_mismatch	rvdb_gapopen	rvdb_qstart	rvdb_qend	rvdb_sstart	rvdb_send	rvdb_evalue	rvdb_bitscore	rvdb_organism	uniref90_sseqid	uniref90_pident	uniref90_aln_len	uniref90_mismatch	uniref90_gapopen	uniref90_qstart	uniref90_qend	uniref90_sstart	uniref90_send	uniref90_evalue	uniref90_bitscore	uniref90_taxid	uniref90_organism	uniref90_repid	uniref90_description	bowtie2_numreads	bowtie2_covbases	bowtie2_coverage	bowtie2_meandepth	bowtie2_meanbaseq	bowtie2_meanmapq
+contig	contig_length	contig_cov	genomad_topology	genomad_coordinates	genomad_n_genes	genomad_genetic_code	genomad_virus_score	genomad_fdr	genomad_n_hallmarks	genomad_marker_enrichment	genomad_taxonomy	rvdb_sseqid	rvdb_protein_acc	rvdb_nt_acc	rvdb_product	rvdb_pident	rvdb_aln_len	rvdb_mismatch	rvdb_gapopen	rvdb_qstart	rvdb_qend	rvdb_sstart	rvdb_send	rvdb_evalue	rvdb_bitscore	rvdb_qlen	rvdb_slen	rvdb_qcovhsp	rvdb_scovhsp	rvdb_organism	uniref90_sseqid	uniref90_pident	uniref90_aln_len	uniref90_mismatch	uniref90_gapopen	uniref90_qstart	uniref90_qend	uniref90_sstart	uniref90_send	uniref90_evalue	uniref90_bitscore	uniref90_qlen	uniref90_slen	uniref90_qcovhsp	uniref90_scovhsp	uniref90_taxid	uniref90_organism	uniref90_repid	uniref90_description	bowtie2_numreads	bowtie2_covbases	bowtie2_coverage	bowtie2_meandepth	bowtie2_meanbaseq	bowtie2_meanmapq
 HDR
 cat "$tmp/body" >> "$out"
 echo "wrote $out ($(($(wc -l < "$out")-1)) rows)"
