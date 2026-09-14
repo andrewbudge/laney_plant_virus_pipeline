@@ -2,8 +2,8 @@
 //
 // plant-virus QC + assembly + viral screening: adapter/quality trim (fastp),
 // rRNA depletion (SortMeRNA), de novo RNA viral assembly (SPAdes --rnaviral),
-// contig filtering, geNomad, bowtie2 read mapping, plus a MultiQC report per
-// run.
+// contig filtering, DIAMOND RVDB-prot, geNomad, bowtie2 read mapping, plus a
+// MultiQC report per run.
 //
 // Processes live in modules/local/; their containers, publishDir and tool
 // arguments are configured in conf/modules.config. Resources/retry live in
@@ -17,7 +17,7 @@ include { SORTMERNA      } from './modules/local/sortmerna/main.nf'
 include { SPADES         } from './modules/local/spades/main.nf'
 include { FILTER         } from './modules/local/filter/main.nf'
 include { BOWTIE2        } from './modules/local/bowtie2/main.nf'
-include { EVIDENCE       } from './modules/local/evidence/main.nf'
+include { DIAMOND_RVDB  } from './modules/local/diamond_rvdb/main.nf'
 include { GENOMAD        } from './modules/local/genomad/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
 include { SAMTOOLS_SORT  } from './modules/local/samtools_sort/main.nf'
@@ -48,6 +48,8 @@ workflow {
     if (!genomad_db.isDirectory())
         error "geNomad database not found: ${genomad_db} — run 'genomad download-database <db>/genomad' to create it"
 
+    rvdb_prot_db = file("${db}/blastx/RVDB-prot.dmnd")
+
     ch_samples = Channel
         .fromPath(params.input, checkIfExists: true)
         .splitCsv(header: true, sep: '\t')
@@ -76,12 +78,10 @@ workflow {
     SORTMERNA(FASTP.out.reads, ch_ref, ch_idx)
     SPADES(SORTMERNA.out.clean)
     FILTER(SPADES.out.contigs)
+    DIAMOND_RVDB(FILTER.out.contigs, Channel.value(rvdb_prot_db))
     GENOMAD(FILTER.out.contigs, Channel.value(genomad_db))
     BOWTIE2(SORTMERNA.out.clean.join(FILTER.out.contigs))
     SAMTOOLS_SORT(BOWTIE2.out.sam)
-    // Join per-contig legs on shared meta; seq_name is the in-file join key the script uses.
-    EVIDENCE(FILTER.out.contigs.join(GENOMAD.out.virus_summary).join(SAMTOOLS_SORT.out.coverage))
-
     MULTIQC(
         FASTP.out.json.mix(SORTMERNA.out.log).collect()
     )
