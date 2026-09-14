@@ -11,6 +11,6 @@ process DIAMOND_UNIREF90 {
 
     script:
     """
-    diamond blastx -d ${db} -q ${contigs} -o ${meta.id}.uniref90.tsv --more-sensitive --evalue 1e-5 --top 5 --query-cover 70 --threads ${task.cpus}
+    diamond blastx -d ${db} -q ${contigs} -o ${meta.id}.uniref90.tsv --more-sensitive --evalue 1e-5 --max-target-seqs 5 --query-cover 70 --threads ${task.cpus}
     """
 }
