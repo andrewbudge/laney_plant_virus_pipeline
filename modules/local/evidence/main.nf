@@ -1,4 +1,4 @@
-// Merge geNomad and bowtie2 map-back results into one per-contig evidence table.
+// Merge geNomad and bowtie2 map-back results into one per-contig evidence table with R.
 process EVIDENCE {
     tag "${meta.id}"
     label 'assembly'
@@ -11,6 +11,6 @@ process EVIDENCE {
 
     script:
     """
-    python3 ${projectDir}/bin/aggregate_evidence.py ${contigs} ${virus_summary} ${coverage} > ${meta.id}.evidence.tsv
+    Rscript ${projectDir}/bin/aggregate_evidence.R ${contigs} ${virus_summary} ${coverage} > ${meta.id}.evidence.tsv
     """
 }
