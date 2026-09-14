@@ -118,12 +118,12 @@ Notes: blastx >> blastn for sensitivity on divergent viruses (protein diverges
 
 ```
 <outdir>/
-  fastp/<sample>/  sortmerna/<sample>/  spades/<sample>/
-  filter/<sample>/<sample>.contigs.fasta   # len>=contig_min_length(1000), cov>=contig_min_cov(10)
-  diamond/<sample>/{<sample>.rvdb.tsv,<sample>.uniref90.tsv}
-  genomad/<sample>/{virus_summary.tsv,virus.fna,virus_proteins.faa,summary.json,*.genomad.log}
-  bowtie2/<sample>/{*.sorted.bam,*.sorted.bam.bai,*.coverage.tsv,*.bowtie2.log}
-  multiqc/  pipeline_info/{timeline,report,trace,dag}
+  01_fastp/<sample>/  02_sortmerna/<sample>/  03_spades/<sample>/
+  04_filter/<sample>/<sample>.contigs.fasta   # len>=contig_min_length(1000), cov>=contig_min_cov(10)
+  05_genomad/<sample>/{virus_summary.tsv,virus.fna,virus_proteins.faa,summary.json,*.genomad.log}
+  06_bowtie2/<sample>/{*.sorted.bam,*.sorted.bam.bai,*.coverage.tsv,*.bowtie2.log}
+  07_diamond/<sample>/{<sample>.rvdb.tsv,<sample>.uniref90.tsv}
+  08_multiqc/  pipeline_info/{timeline,report,trace,dag}
 ```
 
 blastn remains deferred; its planned outfmt is deliberately 12 columns.
