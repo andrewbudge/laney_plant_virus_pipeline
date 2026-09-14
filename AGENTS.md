@@ -9,7 +9,7 @@ as the live design record.
 ```
 fastp ─► sortmerna ─► spades --rnaviral ─► filter (len/cov)
   └──────────┴──────────► multiqc_report.html
-         filter/contigs ─► diamond RVDB-prot · diamond UniRef90 · geNomad
+         filter/contigs ─► diamond U-RVDB-prot · diamond UniRef90 · geNomad
                             plus bowtie2 read mapping
 ```
 
@@ -42,7 +42,7 @@ nextflow run andrewbudge/laney_plant_virus_pipeline -profile slurm|local \
   sortmerna/smr_v4.3_default_db.fasta   # MUST keep this exact basename
   sortmerna/index/                      # prebuilt index; name-encodes the ref basename
   blastn/U-RVDBv32.0.*                  # deferred/optional; makeblastdb -dbtype nucl -parse_seqids
-  blastx/                               # RVDB-prot.fasta, uniref90.fasta.gz (raw)
+  blastx/                               # U-RVDBv32.0-prot.fasta, uniref90.fasta.gz (raw)
   blastx/uniref90.dmnd                  # Diamond UniRef90 database
   genomad/genomad_db/                   # genomad download-database output
 ```
@@ -76,7 +76,7 @@ FILTER's contigs, each feeds one raw per-leg TSV; blastn is deferred.
 | leg | tool → DB | what it answers |
 |---|---|---|
 | 1 | blastn → U-RVDB (nucleotide) | (deferred) known-virus relative? (homology) |
-| 2 | diamond blastx → RVDB-prot | divergent-virus homology (protein) (implemented) |
+| 2 | diamond blastx → U-RVDB-prot | divergent-virus homology (protein) (implemented) |
 | 3 | diamond blastx → UniRef90 | unbiased: is the best hit viral? (confirmation, implemented) |
 | 4 | geNomad | viral by sequence/marker signal, no homology needed (implemented, confirmed) |
 | support | bowtie2 map-back reads → contigs | per-contig read support and confidence for calls |
@@ -101,7 +101,7 @@ Decisions made:
 
 DBs needed (sources already staged in `<db>/blastx/` + user downloading):
 - U-RVDB v32.0 (rvdb.dbi.udel.edu), deferred → `makeblastdb -dbtype nucl -parse_seqids`
-- RVDB-prot (Institut Pasteur, rvdb-prot.pasteur.fr) → `diamond makedb`
+- U-RVDB-prot (Institut Pasteur, rvdb-prot.pasteur.fr) → `diamond makedb --in U-RVDBv32.0-prot.fasta -d U-RVDB-prot`
 - UniRef90 (uniref90.fasta.gz on HPC) → `diamond makedb`
 - geNomad DB → `genomad download-database` on HPC
 

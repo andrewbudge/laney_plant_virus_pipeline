@@ -2,7 +2,7 @@
 //
 // plant-virus QC + assembly + viral screening: adapter/quality trim (fastp),
 // rRNA depletion (SortMeRNA), de novo RNA viral assembly (SPAdes --rnaviral),
-// contig filtering, DIAMOND RVDB-prot and UniRef90, geNomad, bowtie2 read
+// contig filtering, DIAMOND U-RVDB-prot and UniRef90, geNomad, bowtie2 read
 // mapping, plus a MultiQC report per run.
 //
 // Processes live in modules/local/; their containers, publishDir and tool
@@ -49,7 +49,7 @@ workflow {
     if (!genomad_db.isDirectory())
         error "geNomad database not found: ${genomad_db} — run 'genomad download-database <db>/genomad' to create it"
 
-    rvdb_prot_db = file("${db}/blastx/RVDB-prot.dmnd")
+    rvdb_prot_db = file("${db}/blastx/U-RVDB-prot.dmnd")
     uniref90_db = file("${db}/blastx/uniref90.dmnd")
 
     ch_samples = Channel
