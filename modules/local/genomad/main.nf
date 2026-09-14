@@ -18,6 +18,6 @@ process GENOMAD {
     script:
     """
     cp ${contigs} ${meta.id}.fna
-    genomad end-to-end --cleanup --threads ${task.cpus} ${meta.id}.fna ${meta.id}_genomad ${db} 2> ${meta.id}.genomad.log
+    genomad end-to-end --cleanup --threads ${task.cpus} --sensitivity 5.0 --lenient-taxonomy --full-ictv-lineage --enable-score-calibration ${meta.id}.fna ${meta.id}_genomad ${db} 2> ${meta.id}.genomad.log
     """
 }
