@@ -23,6 +23,7 @@
 # Output: $out/evidence/<s>.evidence.tsv  (48-column schema, see header)
 set -euo pipefail
 export LC_ALL=C
+export TMPDIR="$PWD"
 
 usage() { cat <<'EOF'
 Usage: aggregate_evidence.sh -s <sample> -o <outdir> -d <dbdir> [--rvdb-taxmap <file>]
@@ -67,9 +68,7 @@ out="$outdir/evidence/$sample.evidence.tsv"
 [ -f "$g" ] || g=/dev/null
 [ -f "$cov" ] || cov=/dev/null
 
-tmp_parent=${TMPDIR:-/tmp}
-[ -d "$tmp_parent" ] && [ -w "$tmp_parent" ] || tmp_parent=$PWD
-tmp=$(mktemp -d "$tmp_parent/aggregate_evidence.XXXXXXXXXX")
+tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 # ---- one-time caches ------------------------------------------------------
