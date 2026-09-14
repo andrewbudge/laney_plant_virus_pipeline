@@ -2,8 +2,8 @@
 //
 // plant-virus QC + assembly + viral screening: adapter/quality trim (fastp),
 // rRNA depletion (SortMeRNA), de novo RNA viral assembly (SPAdes --rnaviral),
-// contig filtering, blastn against the viral nucleotide database, plus a
-// MultiQC report per run.
+// contig filtering, geNomad, bowtie2 read mapping, plus a MultiQC report per
+// run.
 //
 // Processes live in modules/local/; their containers, publishDir and tool
 // arguments are configured in conf/modules.config. Resources/retry live in
@@ -16,8 +16,11 @@ include { FASTP          } from './modules/local/fastp/main.nf'
 include { SORTMERNA      } from './modules/local/sortmerna/main.nf'
 include { SPADES         } from './modules/local/spades/main.nf'
 include { FILTER         } from './modules/local/filter/main.nf'
-include { BLASTN         } from './modules/local/blastn/main.nf'
+include { BOWTIE2        } from './modules/local/bowtie2/main.nf'
+include { EVIDENCE       } from './modules/local/evidence/main.nf'
+include { GENOMAD        } from './modules/local/genomad/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
+include { SAMTOOLS_SORT  } from './modules/local/samtools_sort/main.nf'
 
 // Relative paths resolve against a caller-supplied root; absolute paths pass
 // through untouched.
@@ -41,9 +44,9 @@ workflow {
     if (!sortmerna_idx.isDirectory())
         error "SortMeRNA index is not a directory: ${sortmerna_idx}"
 
-    blastn_dir = file("${db}/blastn")
-    if (!blastn_dir.isDirectory())
-        error "Blast database directory is not a directory: ${blastn_dir}"
+    genomad_db = file("${db}/genomad/genomad_db")
+    if (!genomad_db.isDirectory())
+        error "geNomad database not found: ${genomad_db} — run 'genomad download-database <db>/genomad' to create it"
 
     ch_samples = Channel
         .fromPath(params.input, checkIfExists: true)
@@ -73,7 +76,11 @@ workflow {
     SORTMERNA(FASTP.out.reads, ch_ref, ch_idx)
     SPADES(SORTMERNA.out.clean)
     FILTER(SPADES.out.contigs)
-    BLASTN(FILTER.out.contigs, Channel.value(blastn_dir), Channel.value(params.blastn_db))
+    GENOMAD(FILTER.out.contigs, Channel.value(genomad_db))
+    BOWTIE2(SORTMERNA.out.clean.join(FILTER.out.contigs))
+    SAMTOOLS_SORT(BOWTIE2.out.sam)
+    // Join per-contig legs on shared meta; seq_name is the in-file join key the script uses.
+    EVIDENCE(FILTER.out.contigs.join(GENOMAD.out.virus_summary).join(SAMTOOLS_SORT.out.coverage))
 
     MULTIQC(
         FASTP.out.json.mix(SORTMERNA.out.log).collect()
