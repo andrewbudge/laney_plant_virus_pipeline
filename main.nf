@@ -2,8 +2,8 @@
 //
 // plant-virus QC + assembly + viral screening: adapter/quality trim (fastp),
 // rRNA depletion (SortMeRNA), de novo RNA viral assembly (SPAdes --rnaviral),
-// contig filtering, DIAMOND RVDB-prot, geNomad, bowtie2 read mapping, plus a
-// MultiQC report per run.
+// contig filtering, DIAMOND RVDB-prot and UniRef90, geNomad, bowtie2 read
+// mapping, plus a MultiQC report per run.
 //
 // Processes live in modules/local/; their containers, publishDir and tool
 // arguments are configured in conf/modules.config. Resources/retry live in
@@ -18,6 +18,7 @@ include { SPADES         } from './modules/local/spades/main.nf'
 include { FILTER         } from './modules/local/filter/main.nf'
 include { BOWTIE2        } from './modules/local/bowtie2/main.nf'
 include { DIAMOND_RVDB  } from './modules/local/diamond_rvdb/main.nf'
+include { DIAMOND_UNIREF90 } from './modules/local/diamond_uniref90/main.nf'
 include { GENOMAD        } from './modules/local/genomad/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
 include { SAMTOOLS_SORT  } from './modules/local/samtools_sort/main.nf'
@@ -49,6 +50,7 @@ workflow {
         error "geNomad database not found: ${genomad_db} — run 'genomad download-database <db>/genomad' to create it"
 
     rvdb_prot_db = file("${db}/blastx/RVDB-prot.dmnd")
+    uniref90_db = file("${db}/blastx/uniref90.dmnd")
 
     ch_samples = Channel
         .fromPath(params.input, checkIfExists: true)
@@ -79,6 +81,7 @@ workflow {
     SPADES(SORTMERNA.out.clean)
     FILTER(SPADES.out.contigs)
     DIAMOND_RVDB(FILTER.out.contigs, Channel.value(rvdb_prot_db))
+    DIAMOND_UNIREF90(FILTER.out.contigs, Channel.value(uniref90_db))
     GENOMAD(FILTER.out.contigs, Channel.value(genomad_db))
     BOWTIE2(SORTMERNA.out.clean.join(FILTER.out.contigs))
     SAMTOOLS_SORT(BOWTIE2.out.sam)

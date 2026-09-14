@@ -9,8 +9,8 @@ as the live design record.
 ```
 fastp ─► sortmerna ─► spades --rnaviral ─► filter (len/cov)
   └──────────┴──────────► multiqc_report.html
-         filter/contigs ─► diamond RVDB-prot · geNomad plus bowtie2 read mapping
-                            (diamond UniRef90 deferred)
+         filter/contigs ─► diamond RVDB-prot · diamond UniRef90 · geNomad
+                            plus bowtie2 read mapping
 ```
 
 - `modules/local/` — one process per file: fastp, sortmerna, sortmerna_index
@@ -43,6 +43,7 @@ nextflow run andrewbudge/laney_plant_virus_pipeline -profile slurm|local \
   sortmerna/index/                      # prebuilt index; name-encodes the ref basename
   blastn/U-RVDBv32.0.*                  # deferred/optional; makeblastdb -dbtype nucl -parse_seqids
   blastx/                               # RVDB-prot.fasta, uniref90.fasta.gz (raw)
+  blastx/uniref90.dmnd                  # Diamond UniRef90 database
   genomad/genomad_db/                   # genomad download-database output
 ```
 
@@ -76,7 +77,7 @@ FILTER's contigs, each feeds one raw per-leg TSV; blastn is deferred.
 |---|---|---|
 | 1 | blastn → U-RVDB (nucleotide) | (deferred) known-virus relative? (homology) |
 | 2 | diamond blastx → RVDB-prot | divergent-virus homology (protein) (implemented) |
-| 3 | diamond blastx → UniRef90 | unbiased: is the best hit viral? (confirmation) |
+| 3 | diamond blastx → UniRef90 | unbiased: is the best hit viral? (confirmation, implemented) |
 | 4 | geNomad | viral by sequence/marker signal, no homology needed (implemented, confirmed) |
 | support | bowtie2 map-back reads → contigs | per-contig read support and confidence for calls |
 
@@ -119,7 +120,7 @@ Notes: blastx >> blastn for sensitivity on divergent viruses (protein diverges
 <outdir>/
   fastp/<sample>/  sortmerna/<sample>/  spades/<sample>/
   filter/<sample>/<sample>.contigs.fasta   # len>=contig_min_length(1000), cov>=contig_min_cov(10)
-  diamond/<sample>/<sample>.rvdb.tsv
+  diamond/<sample>/{<sample>.rvdb.tsv,<sample>.uniref90.tsv}
   genomad/<sample>/{virus_summary.tsv,virus.fna,virus_proteins.faa,summary.json,*.genomad.log}
   bowtie2/<sample>/{*.sorted.bam,*.sorted.bam.bai,*.coverage.tsv,*.bowtie2.log}
   multiqc/  pipeline_info/{timeline,report,trace,dag}
