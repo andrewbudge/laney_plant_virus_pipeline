@@ -67,7 +67,10 @@ out="$outdir/evidence/$sample.evidence.tsv"
 [ -f "$g" ] || g=/dev/null
 [ -f "$cov" ] || cov=/dev/null
 
-tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+tmp_parent=${TMPDIR:-/tmp}
+[ -d "$tmp_parent" ] && [ -w "$tmp_parent" ] || tmp_parent=$PWD
+tmp=$(mktemp -d "$tmp_parent/aggregate_evidence.XXXXXXXXXX")
+trap 'rm -rf "$tmp"' EXIT
 
 # ---- one-time caches ------------------------------------------------------
 if [ ! -s "$rvdb_srt" ]; then
