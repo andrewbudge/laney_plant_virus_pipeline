@@ -90,7 +90,7 @@ workflow {
     DIAMOND_UNIREF90(FILTER.out.contigs, Channel.value(uniref90_db))
     GENOMAD(FILTER.out.contigs, Channel.value(genomad_db))
     BOWTIE2(SORTMERNA.out.clean.join(FILTER.out.contigs))
-    BLASTN_VIROID(FILTER.out.contigs, Channel.value(viroid_db))
+    BLASTN_VIROID(FILTER.out.contigs_viroid, Channel.value(viroid_db))
     SAMTOOLS_SORT(BOWTIE2.out.sam)
     evidence_inputs = DIAMOND_RVDB.out.rvdb
         .join(DIAMOND_UNIREF90.out.uniref90)
