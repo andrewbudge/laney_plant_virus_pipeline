@@ -6,15 +6,14 @@ process BLASTN_VIROID {
 
     input:
     tuple val(meta), path(contigs)
-    path db_dir
+    path db_files
 
     output:
     tuple val(meta), path("${meta.id}.viroid.tsv"), emit: viroid
 
     script:
-    def db_prefix = db_dir.toString().replaceFirst(/\.fna$/, '')
     """
-    blastn -db ${db_dir} -query ${contigs} -out ${meta.id}.viroid.tsv \
+    blastn -db viroid_all_09_25_26_db -query ${contigs} -out ${meta.id}.viroid.tsv \
       -task blastn -evalue 1e-5 -max_target_seqs 5 \
       -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen qcovhsp scovhsp' \
       -num_threads ${task.cpus}

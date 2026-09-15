@@ -55,7 +55,9 @@ workflow {
     uniref90_db = file("${db}/blastx/uniref90.dmnd")
     rvdb_taxmap = file("${db}/blastx/U-RVDBv32.0-prot.taxmap.tsv", checkIfExists: true)
     uniref90_taxmap = file("${db}/blastx/uniref90.taxmap.tsv", checkIfExists: true)
-    viroid_db = file("${db}/blastn/viroid_all_09_25_26_db", checkIfExists: true)
+    viroid_db_files = file("${db}/blastn/viroid_all_09_25_26_db.*", checkIfExists: true)
+    if (!viroid_db_files.find { it.name.endsWith('.nin') } || !viroid_db_files.find { it.name.endsWith('.nsq') })
+        error "viroid BLAST database is incomplete: ${db}/blastn/viroid_all_09_25_26_db.*"
     aggregate_script = file("${baseDir}/bin/aggregate_evidence.sh", checkIfExists: true)
 
     ch_samples = Channel
@@ -91,7 +93,7 @@ workflow {
     DIAMOND_UNIREF90(screen_contigs, Channel.value(uniref90_db))
     GENOMAD(FILTER.out.contigs_large, Channel.value(genomad_db))
     BOWTIE2(SORTMERNA.out.clean.join(screen_contigs))
-    BLASTN_VIROID(FILTER.out.contigs_small, Channel.value(viroid_db))
+    BLASTN_VIROID(FILTER.out.contigs_small, Channel.value(viroid_db_files))
     SAMTOOLS_SORT(BOWTIE2.out.sam)
     evidence_inputs = DIAMOND_RVDB.out.rvdb
         .join(DIAMOND_UNIREF90.out.uniref90)
