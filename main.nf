@@ -17,12 +17,13 @@ include { SORTMERNA      } from './modules/local/sortmerna/main.nf'
 include { SPADES         } from './modules/local/spades/main.nf'
 include { FILTER         } from './modules/local/filter/main.nf'
 include { BOWTIE2        } from './modules/local/bowtie2/main.nf'
-include { DIAMOND_RVDB  } from './modules/local/diamond_rvdb/main.nf'
+include { DIAMOND_RVDB   } from './modules/local/diamond_rvdb/main.nf'
 include { DIAMOND_UNIREF90 } from './modules/local/diamond_uniref90/main.nf'
 include { GENOMAD        } from './modules/local/genomad/main.nf'
 include { MULTIQC        } from './modules/local/multiqc/main.nf'
 include { SAMTOOLS_SORT  } from './modules/local/samtools_sort/main.nf'
 include { EVIDENCE       } from './modules/local/evidence/main.nf'
+include { BLASTN_VIROID  } from './modules/local/blastn_viroid/main.nf'
 
 // Relative paths resolve against a caller-supplied root; absolute paths pass
 // through untouched.
@@ -54,6 +55,7 @@ workflow {
     uniref90_db = file("${db}/blastx/uniref90.dmnd")
     rvdb_taxmap = file("${db}/blastx/U-RVDBv32.0-prot.taxmap.tsv", checkIfExists: true)
     uniref90_taxmap = file("${db}/blastx/uniref90.taxmap.tsv", checkIfExists: true)
+    viroid_db = file("${db}/blastn/viroid_all_09_25_26_db", checkIfExists: true)
     aggregate_script = file("${baseDir}/bin/aggregate_evidence.sh", checkIfExists: true)
 
     ch_samples = Channel
@@ -88,6 +90,7 @@ workflow {
     DIAMOND_UNIREF90(FILTER.out.contigs, Channel.value(uniref90_db))
     GENOMAD(FILTER.out.contigs, Channel.value(genomad_db))
     BOWTIE2(SORTMERNA.out.clean.join(FILTER.out.contigs))
+    BLASTN_VIROID(FILTER.out.contigs, Channel.value(viroid_db))
     SAMTOOLS_SORT(BOWTIE2.out.sam)
     evidence_inputs = DIAMOND_RVDB.out.rvdb
         .join(DIAMOND_UNIREF90.out.uniref90)

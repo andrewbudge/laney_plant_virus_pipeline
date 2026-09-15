@@ -7,14 +7,15 @@ as the live design record.
 ## Pipeline (current)
 
 ```
-fastp ─► sortmerna ─► spades --rnaviral ─► filter (len/cov)
+fastp ─► sortmerna ─► spades --rnaviral ─► filter (len>=200, cov)
   └──────────┴──────────► multiqc_report.html
          filter/contigs ─► diamond U-RVDB-prot · diamond UniRef90 · geNomad
-                            plus bowtie2 read mapping
+                            plus bowtie2 read mapping · blastn viroid (optional)
 ```
 
 - `modules/local/` — one process per file: fastp, sortmerna, sortmerna_index
-  (removed; index now prebuilt), spades, filter, multiqc. blastn is deferred.
+  (removed; index now prebuilt), spades, filter, multiqc. blastn deferred;
+  blastn_viroid optional for viroid detection (contigs 200-500 bp).
 - Conf layout: `conf/base.config` (resources/retry), `conf/modules.config`
   (container/publishDir/ext.args), `conf/slurm.config` (CHPC executor).
 - `main.nf` validates `--db` layout up front: sortmerna ref + index +
@@ -42,8 +43,13 @@ nextflow run andrewbudge/laney_plant_virus_pipeline -profile slurm|local \
   sortmerna/smr_v4.3_default_db.fasta   # MUST keep this exact basename
   sortmerna/index/                      # prebuilt index; name-encodes the ref basename
   blastn/U-RVDBv32.0.*                  # deferred/optional; makeblastdb -dbtype nucl -parse_seqids
+  blastn/viroid_all_09_25_26_db.*       # viroid blastn DB; makeblastdb -dbtype nucl -parse_seqids
   blastx/                               # U-RVDBv32.0-prot.fasta, uniref90.fasta.gz (raw)
   blastx/uniref90.dmnd                  # Diamond UniRef90 database
+  blastx/uniref90.taxmap.tsv            # header lookup: id, taxid, organism, repid, description
+  blastx/uniref90.taxmap.srt            # one-time cache (agg script sorts it); safe to delete
+  blastx/U-RVDBv32.0-prot.taxmap.tsv    # protein FASTA header lookup: rvdb id, protein/nt accessions, organism, product
+  blastx/U-RVDBv32.0-prot.taxmap.srt    # one-time sorted cache; safe to delete
   genomad/genomad_db/                   # genomad download-database output
 ```
 
@@ -70,7 +76,7 @@ biocontainer tags. diamond:2.2.6 flagged AVX2-risk — verify before use.
 ## Screening strategy (V1 LOCKED with user)
 
 Goal: **curate evidence for experts to sift** — no prefiltration, accrue info.
-Host-agnostic; can't guarantee completeness. Three active parallel legs on
+Host-agnostic; can't guarantee completeness. Four active parallel legs on
 FILTER's contigs, each feeds one raw per-leg TSV; blastn is deferred.
 
 | leg | tool → DB | what it answers |
@@ -79,6 +85,7 @@ FILTER's contigs, each feeds one raw per-leg TSV; blastn is deferred.
 | 2 | diamond blastx → U-RVDB-prot | divergent-virus homology (protein) (implemented) |
 | 3 | diamond blastx → UniRef90 | unbiased: is the best hit viral? (confirmation, implemented) |
 | 4 | geNomad | viral by sequence/marker signal, no homology needed (implemented, confirmed) |
+| 5 | blastn → viroid DB | viroid detection (contigs 200-500 bp) (implemented) |
 | support | bowtie2 map-back reads → contigs | per-contig read support and confidence for calls |
 
 Decisions made:
@@ -93,8 +100,11 @@ Decisions made:
   false-positive on eukaryotic seqs at 2-3x rate. VirSorter2 (`--include-groups
    RNA`) is the agreed backup if geNomad underperforms.
 - **blastn is deferred while geNomad + bowtie2 map-back are the focus.**
-- Evidence aggregation deferred until diamond + geNomad outputs compared; schema
-  to be developed from real data.
+- **Viroid detection via blastn** — RVDB/UniRef90/geNomad all miss viroids
+  (non-coding RNA, 246-401 nt). Always-on leg using `<db>/blastn/viroid_all_09_25_26_db.*`
+  (13,132 sequences from NCBI GenBank, 2026-09-15).
+- Evidence aggregation implemented (`bin/aggregate_evidence.sh`): per-contig ×
+  RVDB-hit join of geNomad + diamond RVDB/UniRef90 + protein header taxmaps + bowtie2.
 - **Map-back support is a confidence leg.** rRNA-depleted reads mapped back to
   filtered contigs support calls such as the RNA mitovirus; BAM enables
   `samtools depth`/`idxstats` for the deferred evidence table.
@@ -119,16 +129,68 @@ Notes: blastx >> blastn for sensitivity on divergent viruses (protein diverges
 ```
 <outdir>/
   01_fastp/<sample>/  02_sortmerna/<sample>/  03_spades/<sample>/
-  04_filter/<sample>/<sample>.contigs.fasta   # len>=contig_min_length(1000), cov>=contig_min_cov(10)
-  05_genomad/<sample>/{virus_summary.tsv,virus.fna,virus_proteins.faa,summary.json,*.genomad.log}
+  04_filter/<sample>/<sample>.contigs.fasta   # len>=contig_min_length(200), cov>=contig_min_cov(10)
+  05_genomad/<sample>/{<sample>_virus_summary.tsv,<sample>_virus.fna,<sample>_virus_proteins.faa,<sample>_summary.json,*.genomad.log}
   06_bowtie2/<sample>/{*.sorted.bam,*.sorted.bam.bai,*.coverage.tsv,*.bowtie2.log}
   07_diamond/<sample>/{<sample>.rvdb.tsv,<sample>.uniref90.tsv}
-  08_multiqc/  pipeline_info/{timeline,report,trace,dag}
+  08_multiqc/  evidence/<sample>.evidence.tsv   # 56-col joined table via bin/aggregate_evidence.sh
+  09_viroid/<sample>/<sample>.viroid.tsv   # optional blastn vs viroid DB (contigs 200-500 bp)
+  pipeline_info/{timeline,report,trace,dag}
 ```
+
+Evidence aggregation: `bin/aggregate_evidence.sh -s <sample> -o <outdir> -d <dbdir>`
+joins geNomad + diamond RVDB/UniRef90 + protein header taxmaps + bowtie2 coverage on
+contig name into a 56-col TSV (one row per union contig; repeated per RVDB hit
+when multiple hits exist). One-time sorted caches (`.srt`) auto-built in
+`<db>/blastx/` on first run. Final rows retain stream order; only join inputs
+and lookup caches are sorted as required by `join`.
+
+Diamond outfmt carries only the subject seqid — the first header token before a
+space. RVDB-prot descriptions thus truncate to one word (e.g. `essential`,
+`Gag-Pol`). So each diamond leg gets a **header lookup TSV** (one-time build,
+stored beside the DB) for the evidence aggregation to join on sseqid:
+
+| leg | lookup key | file |
+|---|---|---|
+| UniRef90 | `UniRef90_*` id | `<db>/blastx/uniref90.taxmap.tsv` (id, taxid, organism, repid, description) — built |
+| U-RVDB-prot | complete DIAMOND `sseqid` | `<db>/blastx/U-RVDBv32.0-prot.taxmap.tsv` (rvdb id, protein accession, nucleotide accession, organism, product) — built from protein FASTA headers |
+
+Both DIAMOND legs use a custom 16-field outfmt: the standard 12 fields plus
+`qlen`, `slen`, `qcovhsp`, and `scovhsp`.
+
+RVDB additionally ships `RVDB_AnnotationList_Current.tab.gz` (non-viral/ERV
+tags) if we want to tag Gag-Pol/LTR hits in aggregation later. RVDB protein
+headers do not carry taxids or lineages, so those columns are omitted until a
+reliable protein-accession taxonomy mapping is available.
 
 blastn remains deferred; its planned outfmt is deliberately 12 columns.
 qcovs = fraction of contig matched, `length` vs `slen` = does the contig span
 the whole genome. staxids/sscinames stay blank without `makeblastdb -taxid_map`.
+
+## Potential add-ons after 0.1.0
+
+- geNomad `annotate/*_genes.tsv` aggregation: marker count, USCG count,
+  plasmid/virus hallmark counts, and hallmark identities, coordinates, scores,
+  taxonomy, and descriptions for every contig. Use the all-contig annotation
+  file rather than only `summary/*_virus_genes.tsv` to preserve no-prefilter
+  evidence collection. Do not interpret marker `taxname` alone as viral.
+- Depth uniformity from `samtools depth` or `mosdepth`: median depth, depth CV,
+  uncovered bases, and fractions at >=10x and >=100x.
+- Genome completeness evidence: ORFfinder/EMBOSS getorf, HMMER/Pfam or
+  InterProScan domains, reference gene complement, Bandage assembly graphs,
+  and experimental RACE for RNA termini. CheckV is mainly applicable to DNA
+  viruses and phages, not most RNA viruses.
+- Novelty and taxonomy: PalmScan/PalmDB or RdRP profile HMMs, MMseqs2 protein
+  clustering, MAFFT alignments, IQ-TREE 2 phylogenies, and ICTV family-specific
+  demarcation criteria.
+- Host association and active infection: sample metadata, multi-sample
+  co-abundance, broad Kraken2/Kaiju/DIAMOND taxonomy, strand-specific RNA-seq,
+  21-24 nt viral small-RNA signatures, and RT-qPCR/ddPCR or in situ validation.
+- Contamination controls: extraction blanks, technical/biological replicates,
+  cross-sample prevalence and index-hopping checks, and `decontam` analysis.
+- Absence confidence: positive spike-ins, defined detection limits, read
+  downsampling, translated/profile-HMM sensitivity benchmarks, and replicate
+  consistency. A negative screen cannot establish true virus absence.
 
 ## Verification workflow
 
