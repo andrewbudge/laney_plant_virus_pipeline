@@ -129,7 +129,8 @@ Notes: blastx >> blastn for sensitivity on divergent viruses (protein diverges
 ```
 <outdir>/
   01_fastp/<sample>/  02_sortmerna/<sample>/  03_spades/<sample>/
-  04_filter/<sample>/<sample>.contigs.fasta   # len>=contig_min_length(200), cov>=contig_min_cov(10)
+  04_filter/<sample>/{<sample>.viroid_contigs.fasta,<sample>.contigs.fasta}
+                                               # viroid: 200-450 bp; standard: >=1000 bp; cov>=10
   05_genomad/<sample>/{<sample>_virus_summary.tsv,<sample>_virus.fna,<sample>_virus_proteins.faa,<sample>_summary.json,*.genomad.log}
   06_bowtie2/<sample>/{*.sorted.bam,*.sorted.bam.bai,*.coverage.tsv,*.bowtie2.log}
   07_diamond/<sample>/{<sample>.rvdb.tsv,<sample>.uniref90.tsv}
